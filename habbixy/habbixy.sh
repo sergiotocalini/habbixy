@@ -13,13 +13,17 @@ APP_NAME=$(basename $0)
 APP_DIR=$(dirname $0)
 APP_VER="0.0.1"
 APP_WEB="http://www.sergiotocalini.com.ar/"
+APP_TIMESTAMP=`date '+%s'`
+HAPROXY_SOCKET="/var/run/haproxy.sock"
+HAPROXY_CACHE_DIR=${APP_DIR}/var
+HAPROXY_CACHE_TTL=5                                      # IN MINUTES
 #
 #################################################################################
 
 #################################################################################
 #
-#  Load Oracle Environment
-# -------------------------
+#  Load Environment
+# ------------------
 #
 [ -f ${APP_DIR}/${APP_NAME%.*}.conf ] && . ${APP_DIR}/${APP_NAME%.*}.conf
 
@@ -48,6 +52,21 @@ usage() {
 version() {
     echo "${APP_NAME%.*} ${APP_VER}"
     exit 1
+}
+
+refresh_cache() {
+    local type=${1:-'stat'}
+    local file=${HAPROXY_CACHE_DIR}/${type}.cache
+    if [[ (`stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL}) -ge ${APP_TIMESTAMP} ]]; then
+	echo "show ${type}" | socat ${HAPROXY_SOCKET} stdio 2>/dev/null > ${file}
+    fi
+}
+
+discovery() {
+    refresh_cache
+    for item in `grep ${1} ${HAPROXY_CACHE_DIR}/stat.cache | cut -d, -f1 | uniq`; do
+	echo ${item}
+    done
 }
 #
 #################################################################################
@@ -84,9 +103,8 @@ for arg in ${SCRIPTS_ARGS[@]}; do
 done
 
 if [[ -f "${SCRIPT%.sh}.sh" ]]; then
-    rval=`${SCRIPT%.sh}.sh ${ARGS} 2>/dev/null`
-    rcode="${?}"
     if [[ ${JSON} -eq 1 ]]; then
+       rval=$(discovery ${ARGS[*]})
        echo '{'
        echo '   "data":['
        count=1
@@ -109,7 +127,9 @@ if [[ -f "${SCRIPT%.sh}.sh" ]]; then
        echo '   ]'
        echo '}'
     else
-       echo ${rval:-0}
+	rval=`${SCRIPT%.sh}.sh ${ARGS} 2>/dev/null`
+	rcode="${?}"
+	echo ${rval:-0}
     fi
 else
     echo "ZBX_NOTSUPPORTED"
