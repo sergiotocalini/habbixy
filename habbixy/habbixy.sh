@@ -58,8 +58,8 @@ version() {
 }
 
 refresh_cache() {
-    local type=${1:-'stat'}
-    local file=${HAPROXY_CACHE_DIR}/${type}.cache
+    type=${1:-'stat'}
+    file=${HAPROXY_CACHE_DIR}/${type}.cache
     if [[ $(( `stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL} )) -ge ${APP_TIMESTAMP} ]]; then
 	echo "show ${type}" | socat ${HAPROXY_SOCKET} stdio 2>/dev/null > ${file}
     fi
