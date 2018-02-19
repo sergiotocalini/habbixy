@@ -28,7 +28,7 @@ HAPROXY_CACHE_TTL=5                                      # IN MINUTES
 #  Load Environment
 # ------------------
 #
-[ -f ${APP_DIR}/${APP_NAME%.*}.conf ] && . ${APP_DIR}/${APP_NAME%.*}.conf
+[[ -f ${APP_DIR}/${APP_NAME%.*}.conf ]] && . ${APP_DIR}/${APP_NAME%.*}.conf
 
 #
 #################################################################################
@@ -60,7 +60,7 @@ version() {
 refresh_cache() {
     local type=${1:-'stat'}
     local file=${HAPROXY_CACHE_DIR}/${type}.cache
-    if [[ (`stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL}) > ${APP_TIMESTAMP} ]]; then
+    if [[ $(( `stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL} )) -ge ${APP_TIMESTAMP} ]]; then
 	echo "show ${type}" | socat ${HAPROXY_SOCKET} stdio 2>/dev/null > ${file}
     fi
 }
