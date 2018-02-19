@@ -45,7 +45,7 @@ usage() {
     echo "  -a            Query arguments."
     echo "  -h            Displays this help message."
     echo "  -j            Jsonify output."
-    echo "  -s ARG(str)   Script."
+    echo "  -s ARG(str)   Section (default=stat)."
     echo "  -v            Show the script version."
     echo ""
     echo "Please send any bug reports to sergiotocalini@gmail.com"
@@ -55,6 +55,10 @@ usage() {
 version() {
     echo "${APP_NAME%.*} ${APP_VER}"
     exit 1
+}
+
+check_params() {
+    [[ -d ${HAPROXY_CACHE_DIR} ]] || mkdir -p ${HAPROXY_CACHE_DIR}
 }
 
 refresh_cache() {
@@ -70,7 +74,6 @@ discovery() {
     refresh_cache 'stat'
     if [[ ${svname} != 'SERVER' ]]; then
  	for item in `cat ${HAPROXY_CACHE_STAT} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
-#        for item in `grep ${1} ${HAPROXY_CACHE_STAT} | cut -d, -f1 | uniq`; do
 	    echo ${item}
         done
     fi
