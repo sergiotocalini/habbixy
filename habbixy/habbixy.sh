@@ -14,8 +14,11 @@ APP_DIR=$(dirname $0)
 APP_VER="0.0.1"
 APP_WEB="http://www.sergiotocalini.com.ar/"
 APP_TIMESTAMP=`date '+%s'`
+APP_MAP_INDEX=${APP_DIR}/map.index
 HAPROXY_SOCKET="/var/run/haproxy.sock"
 HAPROXY_CACHE_DIR=${APP_DIR}/var
+HAPROXY_CACHE_STAT=${HAPROXY_CACHE_DIR}/stat.cache
+HAPROXY_CACHE_INFO=${HAPROXY_CACHE_DIR}/info.cache
 HAPROXY_CACHE_TTL=5                                      # IN MINUTES
 #
 #################################################################################
@@ -63,10 +66,31 @@ refresh_cache() {
 }
 
 discovery() {
-    refresh_cache
-    for item in `grep ${1} ${HAPROXY_CACHE_DIR}/stat.cache | cut -d, -f1 | uniq`; do
+    refresh_cache 'stat'
+    for item in `grep ${1} ${HAPROXY_CACHE_STAT} | cut -d, -f1 | uniq`; do
 	echo ${item}
     done
+}
+
+get_stat() {
+    pxname=${1}
+    svname=${2}
+    stats=${3}
+
+    refresh_cache 'stat'
+    
+    _STAT=`grep :${stats}: ${APP_MAP_INDEX}`
+    _INDEX=${_STAT%%:*}
+    _DEFAULT=${_STAT##*:}
+
+    _res="`grep \"${pxname},${svname}\" \"${HAPROXY_CACHE_STAT}\"`"
+    
+    _res="$(echo $_res | cut -d, -f ${_INDEX})"
+    if [ -z "${_res}" ] && [[ "${_DEFAULT}" != "@" ]]; then
+	echo "${_DEFAULT}"
+    else
+	echo "${_res}"
+    fi
 }
 #
 #################################################################################
@@ -102,7 +126,7 @@ for arg in ${SCRIPTS_ARGS[@]}; do
     let "count=count+1"
 done
 
-if [[ -f "${SCRIPT%.sh}.sh" ]]; then
+#if [[ -f "${SCRIPT%.sh}.sh" ]]; then
     if [[ ${JSON} -eq 1 ]]; then
        rval=$(discovery ${ARGS[*]})
        echo '{'
@@ -131,9 +155,9 @@ if [[ -f "${SCRIPT%.sh}.sh" ]]; then
 	rcode="${?}"
 	echo ${rval:-0}
     fi
-else
-    echo "ZBX_NOTSUPPORTED"
-    rcode="1"
-fi
+#else
+#    echo "ZBX_NOTSUPPORTED"
+#    rcode="1"
+#fi
 
 exit ${rcode}
