@@ -66,10 +66,14 @@ refresh_cache() {
 }
 
 discovery() {
+    svname=${1}
     refresh_cache 'stat'
-    for item in `grep ${1} ${HAPROXY_CACHE_STAT} | cut -d, -f1 | uniq`; do
-	echo ${item}
-    done
+    if [[ ${svname} != 'SERVER' ]]; then
+ 	for item in `cat ${HAPROXY_CACHE_STAT} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
+#        for item in `grep ${1} ${HAPROXY_CACHE_STAT} | cut -d, -f1 | uniq`; do
+	    echo ${item}
+        done
+    fi
 }
 
 get_stat() {
@@ -102,14 +106,14 @@ while getopts "s::a:s:uphvj:" OPTION; do
 	    usage
 	    ;;
 	s)
-	    SCRIPT="${APP_DIR}/scripts/${OPTARG}"
+	    SECTION="${OPTARG}"
 	    ;;
         j)
             JSON=1
             IFS=":" JSON_ATTR=(${OPTARG})
             ;;
 	a)
-	    SCRIPTS_ARGS[${#SCRIPTS_ARGS[*]}]=${OPTARG}
+	    ARGS[${#ARGS[*]}]=${OPTARG//p=}
 	    ;;
 	v)
 	    version
@@ -118,12 +122,6 @@ while getopts "s::a:s:uphvj:" OPTION; do
             exit 1
             ;;
     esac
-done
-
-count=1
-for arg in ${SCRIPTS_ARGS[@]}; do
-    ARGS+="${arg//p=} "
-    let "count=count+1"
 done
 
 #if [[ -f "${SCRIPT%.sh}.sh" ]]; then
@@ -151,8 +149,10 @@ done
        echo '   ]'
        echo '}'
     else
-	rval=`${SCRIPT%.sh}.sh ${ARGS} 2>/dev/null`
-	rcode="${?}"
+	if [[ ${SECTION} == 'stat' ]]; then
+	   rval=$( get_stat ${ARGS[*]} )
+	   rcode="${?}"
+        fi
 	echo ${rval:-0}
     fi
 #else
