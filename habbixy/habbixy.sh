@@ -64,7 +64,7 @@ check_params() {
 refresh_cache() {
     type=${1:-'stat'}
     file=${HAPROXY_CACHE_DIR}/${type}.cache
-    if [[ $(( `stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL} )) -ge ${APP_TIMESTAMP} ]]; then
+    if [[ $(( `stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL} )) -le ${APP_TIMESTAMP} ]]; then
 	echo "show ${type}" | sudo socat ${HAPROXY_SOCKET} stdio 2>/dev/null > ${file}
     fi
 }
@@ -90,7 +90,7 @@ get_stat() {
     _INDEX=${_STAT%%:*}
     _DEFAULT=${_STAT##*:}
 
-    _res="`grep \"${pxname},${svname}\" \"${HAPROXY_CACHE_STAT}\"`"
+    _res="`grep \"${pxname},${svname}\" \"${HAPROXY_CACHE_STAT}\" 2>/dev/null`"
     
     _res="$(echo $_res | cut -d, -f ${_INDEX})"
     if [ -z "${_res}" ] && [[ "${_DEFAULT}" != "@" ]]; then
