@@ -105,7 +105,7 @@ get_info() {
 
     cache=$(refresh_cache 'info')
     
-    _res="`grep -E \"^${attr}:\" \"${cache}\" 2>/dev/null | cut -d: -f ${2}`"
+    _res="`grep -E \"^${attr}:\" \"${cache}\" 2>/dev/null | cut -d: -f 2`"
     echo "${_res:-0}"
 }
 #
