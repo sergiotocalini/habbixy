@@ -164,6 +164,9 @@ done
 	if [[ ${SECTION} == 'stat' ]]; then
 	   rval=$( get_stat ${ARGS[*]} )
 	   rcode="${?}"
+	elif [[ ${SECTION} == 'info' ]]; then
+	   rval=$( get_info ${ARGS[*]} )
+	   rcode="${?}"	    
         fi
 	echo ${rval:-0}
     fi
