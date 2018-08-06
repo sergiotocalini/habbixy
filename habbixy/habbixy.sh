@@ -17,8 +17,6 @@ APP_TIMESTAMP=`date '+%s'`
 APP_MAP_INDEX=${APP_DIR}/map.index
 HAPROXY_SOCKET="/var/run/haproxy.sock"
 HAPROXY_CACHE_DIR=${APP_DIR}/var
-HAPROXY_CACHE_STAT=${HAPROXY_CACHE_DIR}/stat.cache
-HAPROXY_CACHE_INFO=${HAPROXY_CACHE_DIR}/info.cache
 HAPROXY_CACHE_TTL=5                                      # IN MINUTES
 #
 #################################################################################
@@ -67,13 +65,15 @@ refresh_cache() {
     if [[ $(( `stat -c '%Y' "${file}"`+60*${HAPROXY_CACHE_TTL} )) -le ${APP_TIMESTAMP} ]]; then
 	echo "show ${type}" | sudo socat ${HAPROXY_SOCKET} stdio 2>/dev/null > ${file}
     fi
+    echo "${file}"
+    return 0
 }
 
 discovery() {
     svname=${1}
-    refresh_cache 'stat'
+    cache=$(refresh_cache 'stat')
     if [[ ${svname} != 'SERVER' ]]; then
- 	for item in `cat ${HAPROXY_CACHE_STAT} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
+ 	for item in `cat ${cache} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
 	    echo ${item}
         done
     fi
@@ -84,13 +84,13 @@ get_stat() {
     svname=${2}
     stats=${3}
 
-    refresh_cache 'stat'
+    cache=$(refresh_cache 'stat')
     
     _STAT=`grep :${stats}: ${APP_MAP_INDEX}`
     _INDEX=${_STAT%%:*}
     _DEFAULT=${_STAT##*:}
 
-    _res="`grep \"${pxname},${svname}\" \"${HAPROXY_CACHE_STAT}\" 2>/dev/null`"
+    _res="`grep \"${pxname},${svname}\" \"${cache}\" 2>/dev/null`"
     
     _res="$(echo $_res | cut -d, -f ${_INDEX})"
     if [ -z "${_res}" ] && [[ "${_DEFAULT}" != "@" ]]; then
@@ -98,6 +98,15 @@ get_stat() {
     else
 	echo "${_res}"
     fi
+}
+
+get_info() {
+    attr=${1}
+
+    cache=$(refresh_cache 'info')
+    
+    _res="`grep -E \"^${attr}:\" \"${cache}\" 2>/dev/null | cut -d: -f ${2}`"
+    echo "${_res:-0}"
 }
 #
 #################################################################################
