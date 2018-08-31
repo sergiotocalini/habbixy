@@ -99,10 +99,7 @@ discovery_certs() {
 	    if [[ ${params[${idx}]} == 'crt' ]]; then
 		if ! ifArrayHas "${params[$((${idx}+1))]}" "${crt[@]}"; then
 		    if [[ -f "${params[$((${idx}+1))]}" ]]; then
-			info=
-			info[${#info[@]}]="${params[$((${idx}+1))]}"
-			info[${#info[@]}]=$( get_cert_text "${params[$((${idx}+1))]}" | grep -E "^.*Subject:" | sed "s|^.*Subject: CN=||g" )
-			crt[${#crt[@]}]=`printf '%s|' ${info[@]}`
+			crt[${#crt[@]}]="${params[$((${idx}+1))]}"
 		    fi
 		fi
 	    elif [[ ${params[${idx}]} == 'crt-list' ]]; then
@@ -118,10 +115,7 @@ discovery_certs() {
 	while read cert; do
 	    if ! ifArrayHas "${cert}" "${crt[@]}"; then
 		if [[ -f "${cert}" ]]; then
-		    info=
-		    info[${#info[@]}]="${cert}"
-		    info[${#info[@]}]=$( get_cert_text "${cert}" | grep -E "^.*Subject:" | sed "s|^.*Subject: CN=||g" )
-		    crt[${#crt[@]}]=`printf '%s|' ${info[@]}`
+		    crt[${#crt[@]}]="${cert}"
 		fi
 	    fi
 	done < <(cat ${crt_list[${idx}]})
@@ -196,43 +190,39 @@ while getopts "s::a:s:uphvj:" OPTION; do
     esac
 done
 
-#if [[ -f "${SCRIPT%.sh}.sh" ]]; then
-    if [[ ${JSON} -eq 1 ]]; then
-       rval=$(discovery ${ARGS[*]})
-       echo '{'
-       echo '   "data":['
-       count=1
-       while read line; do
-          IFS="|" values=(${line})
-          output='{ '
-          for val_index in ${!values[*]}; do
-             output+='"'{#${JSON_ATTR[${val_index}]}}'":"'${values[${val_index}]}'"'
-             if (( ${val_index}+1 < ${#values[*]} )); then
+if [[ ${JSON} -eq 1 ]]; then
+    rval=$(discovery ${ARGS[*]})
+    echo '{'
+    echo '   "data":['
+    count=1
+    while read line; do
+        IFS="|" values=(${line})
+        output='{ '
+        for val_index in ${!values[*]}; do
+            output+='"'{#${JSON_ATTR[${val_index}]}}'":"'${values[${val_index}]}'"'
+            if (( ${val_index}+1 < ${#values[*]} )); then
                 output="${output}, "
-             fi
-          done 
-          output+=' }'
-          if (( ${count} < `echo ${rval}|wc -l` )); then
-             output="${output},"
-          fi
-          echo "      ${output}"
-          let "count=count+1"
-       done <<< ${rval}
-       echo '   ]'
-       echo '}'
-    else
-	if [[ ${SECTION} == 'stat' ]]; then
-	   rval=$( get_stat ${ARGS[*]} )
-	   rcode="${?}"
-	elif [[ ${SECTION} == 'info' ]]; then
-	   rval=$( get_info ${ARGS[*]} )
-	   rcode="${?}"	    
+            fi
+        done 
+        output+=' }'
+        if (( ${count} < `echo ${rval}|wc -l` )); then
+            output="${output},"
         fi
-	echo ${rval:-0}
+        echo "      ${output}"
+        let "count=count+1"
+    done <<< ${rval}
+    echo '   ]'
+    echo '}'
+else
+    if [[ ${SECTION} == 'stat' ]]; then
+	rval=$( get_stat ${ARGS[*]} )
+	rcode="${?}"
+    elif [[ ${SECTION} == 'info' ]]; then
+	rval=$( get_info ${ARGS[*]} )
+	rcode="${?}"
+    elif [[ ${SECTION} == 'certs' ]]; then
+	echo
     fi
-#else
-#    echo "ZBX_NOTSUPPORTED"
-#    rcode="1"
-#fi
-
+    echo ${rval:-0}
+fi
 exit ${rcode}
