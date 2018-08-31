@@ -133,6 +133,8 @@ get_cert() {
 	after=`sudo openssl x509 -noout -in ${file} -enddate 2>/dev/null|cut -d'=' -f2`
 	res=$((($(date -d "${after}" +'%s') - $(date +'%s'))/86400))
     fi
+    echo "${res:-0}"
+    return 0    
 }
 
 get_cert_text() {
