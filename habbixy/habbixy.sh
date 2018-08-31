@@ -1,6 +1,6 @@
 #!/usr/bin/env ksh
-rcode=0
 PATH=/usr/local/bin:${PATH}
+IFS_DEFAULT=${IFS}
 
 #################################################################################
 
@@ -15,6 +15,7 @@ APP_VER="0.0.1"
 APP_WEB="http://www.sergiotocalini.com.ar/"
 APP_TIMESTAMP=`date '+%s'`
 APP_MAP_INDEX=${APP_DIR}/map.index
+HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 HAPROXY_SOCKET="/var/run/haproxy.sock"
 HAPROXY_CACHE_DIR=${APP_DIR}/var
 HAPROXY_CACHE_TTL=5                                      # IN MINUTES
@@ -71,12 +72,70 @@ refresh_cache() {
 
 discovery() {
     svname=${1}
-    cache=$(refresh_cache 'stat')
-    if [[ ${svname} != 'SERVER' ]]; then
+    if [[ ${svname} =~ (BACKEND|FRONTEND) ]]; then
+	cache=$(refresh_cache 'stat')
  	for item in `cat ${cache} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
 	    echo ${item}
         done
+    elif [[ ${svname} == "certs" ]]; then
+	discovery_certs
     fi
+}
+
+ifArrayHas() {
+    item=${1}
+    array=( ${2} )
+    for i in ${!array[@]}; do
+	[[ ${array[${i}]} == ${item} ]] && return 0
+    done
+    return 1
+}
+
+discovery_certs() {
+    while read line; do
+	IFS=" " params=( ${line} )
+	IFS=${IFS_DEFAULT}
+	for idx in ${!params[@]}; do
+	    if [[ ${params[${idx}]} == 'crt' ]]; then
+		if ! ifArrayHas "${params[$((${idx}+1))]}" "${crt[@]}"; then
+		    if [[ -f "${params[$((${idx}+1))]}" ]]; then
+			info=
+			info[${#info[@]}]="${params[$((${idx}+1))]}"
+			info[${#info[@]}]=$( get_cert_text "${params[$((${idx}+1))]}" | grep -E "^.*Subject:" | sed "s|^.*Subject: CN=||g" )
+			crt[${#crt[@]}]=`printf '%s|' ${info[@]}`
+		    fi
+		fi
+	    elif [[ ${params[${idx}]} == 'crt-list' ]]; then
+		if ! ifArrayHas "${params[$((${idx}+1))]}" "${crt_list[@]}"; then
+		    if [[ -f "${params[$((${idx}+1))]}" ]]; then
+			crt_list[${#crt_list[@]}]="${params[$((${idx}+1))]}"
+		    fi
+		fi
+	    fi
+	done
+    done < <(grep -E "(^|\s)bind($|\s)" ${HAPROXY_CONFIG} | grep -E " (crt|crt-list) " | awk '{$1=$1};1')
+    for idx in ${!crt_list[@]}; do
+	while read cert; do
+	    if ! ifArrayHas "${cert}" "${crt[@]}"; then
+		if [[ -f "${cert}" ]]; then
+		    info=
+		    info[${#info[@]}]="${cert}"
+		    info[${#info[@]}]=$( get_cert_text "${cert}" | grep -E "^.*Subject:" | sed "s|^.*Subject: CN=||g" )
+		    crt[${#crt[@]}]=`printf '%s|' ${info[@]}`
+		fi
+	    fi
+	done < <(cat ${crt_list[${idx}]})
+    done
+    printf '%s\n' ${crt[@]}
+}
+
+get_cert_text() {
+    crt_file="${1}"
+
+    [[ -f ${crt_file} ]] || return 1
+    
+    openssl x509 -noout -in ${crt_file} -text
+    return 0
 }
 
 get_stat() {
@@ -123,6 +182,7 @@ while getopts "s::a:s:uphvj:" OPTION; do
         j)
             JSON=1
             IFS=":" JSON_ATTR=(${OPTARG})
+	    IFS=${IFS_DEFAULT}
             ;;
 	a)
 	    ARGS[${#ARGS[*]}]=${OPTARG//p=}

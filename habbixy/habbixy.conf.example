@@ -1,1 +1,2 @@
+HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 HAPROXY_SOCKET="/var/run/haproxy.sock"
