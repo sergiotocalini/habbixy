@@ -123,6 +123,18 @@ discovery_certs() {
     printf '%s\n' ${crt[@]}
 }
 
+get_cert() {
+    file="${1}"
+    attr="${2}"
+
+    [ -f ${file} ] || return 1
+    
+    if [[ ${attr} == 'expires' ]]; then
+	after=`sudo openssl x509 -noout -in ${file} -enddate 2>/dev/null|cut -d'=' -f2`
+	res=$((($(date -d "${after}" +'%s') - $(date +'%s'))/86400))
+    fi
+}
+
 get_cert_text() {
     crt_file="${1}"
 
@@ -221,7 +233,7 @@ else
 	rval=$( get_info ${ARGS[*]} )
 	rcode="${?}"
     elif [[ ${SECTION} == 'certs' ]]; then
-	echo
+	rval=$( get_cert ${ARGS[*]} )
     fi
     echo ${rval:-0}
 fi
