@@ -84,7 +84,8 @@ discovery() {
 
 ifArrayHas() {
     item=${1}
-    array=( ${2} )
+    shift
+    array=( "${@}" )
     for i in ${!array[@]}; do
 	[[ ${array[${i}]} == ${item} ]] && return 0
     done
