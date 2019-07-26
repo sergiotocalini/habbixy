@@ -74,7 +74,7 @@ discovery() {
     svname=${1}
     if [[ ${svname} =~ (BACKEND|FRONTEND) ]]; then
 	cache=$(refresh_cache 'stat')
- 	for item in `cat ${cache} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | uniq`; do
+ 	for item in `cat ${cache} | awk -F"," '$2 ~ /^'${svname}'$/{print}' | cut -d, -f1 | sort | uniq`; do
 	    echo ${item}
         done
     elif [[ ${svname} == "certs" ]]; then
